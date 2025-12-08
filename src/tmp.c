@@ -1,18 +1,19 @@
+#define _GNU_SOURCE
+
 #include "terminal_launcher.h"
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <sys/mman.h>
 #include <sys/wait.h>
-#include <string.h>
 
 #define SHARED_MEMORY_SIZE 4096
 
-// Function to initialize the shared memory
-void *create_shared_memory() {
-	void *shm = mmap(NULL, SHARED_MEMORY_SIZE, PROT_READ | PROT_WRITE,
-			MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+void *create_shared_memory(int fd) {
+	void *shm = mmap(NULL, SHARED_MEMORY_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+
 	if (shm == MAP_FAILED) {
 		perror("mmap failed");
 		exit(EXIT_FAILURE);
@@ -20,7 +21,7 @@ void *create_shared_memory() {
 	return shm;
 }
 
-int child_main(int argc, char *argv[], void *shared_memory) {
+int child_main(int argc, char *argv[]) {
 	printf("--- CHILD PROCESS EXECUTING IN NEW TERMINAL ---\n");
 	printf("Child PID: %d\n", getpid());
 	printf("Arguments received:\n");
@@ -28,9 +29,11 @@ int child_main(int argc, char *argv[], void *shared_memory) {
 		printf("  argv[%d]: %s\n", i, argv[i]);
 	}
 
+	void *shared_memory = create_shared_memory(atoi(argv[2]));
+
 	printf("Shared memory contains: %s\n", (char *)shared_memory);
-	snprintf((char *)shared_memory, SHARED_MEMORY_SIZE, "Hello from child!");
-	// snprintf((char *)shared_memory + 19, 50, "\nHello from child!");
+	// snprintf((char *)shared_memory, SHARED_MEMORY_SIZE, "Hello from child!");
+	snprintf((char *)shared_memory + 18, 50, "\nHello from child!");
 	printf("Shared memory contains: %s\n", (char *)shared_memory);
 
 	printf("Press Enter to close this terminal...\n");
@@ -39,16 +42,21 @@ int child_main(int argc, char *argv[], void *shared_memory) {
 }
 
 int main(int argc, char *argv[]) {
-	if (argc > 1 && strcmp(argv[1], "child") == 0)	return child_main(argc, argv, argv[2]);
+	if (argc > 1 && strcmp(argv[1], "child") == 0)	return child_main(argc, argv);
 
-	void *shared_memory = create_shared_memory();
+	int fd = memfd_create("my_shared_memory", 0);
+	ftruncate(fd, SHARED_MEMORY_SIZE);
+	void *shared_memory = create_shared_memory(fd);
 
 	printf("Parent process: Shared memory contains: %s\n", (char *)shared_memory);
 	snprintf((char *)shared_memory, SHARED_MEMORY_SIZE, "Hello from parent!");
 	printf("Parent process: Shared memory contains: %s\n", (char *)shared_memory);
 
 
-	char *child_args[] = { "child", shared_memory, "12345", NULL };
+	char *child_args[] = { "child", NULL, "12345", NULL };
+	char file_desc[64];
+	sprintf(file_desc, "%d", fd);
+	child_args[1] = file_desc;
 
 	pid_t new_terminal_pid = launch_in_new_terminal(argv[0], child_args);
 	
