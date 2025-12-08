@@ -96,3 +96,4 @@ pid_t launch_in_new_terminal(const char *program_path, char *program_args[]) {
 	perror("Execvp failed in child process");
 	return -3;
 }
+
