@@ -33,7 +33,7 @@ int child_main(int argc, char *argv[]) {
 
 	printf("Shared memory contains: %s\n", (char *)shared_memory);
 	// snprintf((char *)shared_memory, SHARED_MEMORY_SIZE, "Hello from child!");
-	snprintf((char *)shared_memory + 18, 50, "\nHello from child!");
+	snprintf((char *)shared_memory + 18, 50, " > Hello from child!");
 	printf("Shared memory contains: %s\n", (char *)shared_memory);
 
 	printf("Press Enter to close this terminal...\n");
@@ -55,7 +55,7 @@ int main(int argc, char *argv[]) {
 
 	char *child_args[] = { "child", NULL, "12345", NULL };
 	char file_desc[64];
-	sprintf(file_desc, "%d", fd);
+	snprintf(file_desc, 64, "%d", fd);
 	child_args[1] = file_desc;
 
 	pid_t new_terminal_pid = launch_in_new_terminal(argv[0], child_args);
